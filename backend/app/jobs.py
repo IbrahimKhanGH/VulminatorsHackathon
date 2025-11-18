@@ -3,6 +3,7 @@ import uuid
 from typing import Dict, Optional
 
 from . import schemas
+from .config import get_settings
 from .services.analyzer import run_analysis_pipeline
 
 
@@ -41,6 +42,7 @@ class JobStore:
 
 
 job_store = JobStore()
+settings = get_settings()
 
 
 async def _execute_job(run_id: str) -> None:
@@ -75,7 +77,10 @@ async def _execute_job(run_id: str) -> None:
 
 async def enqueue_job(request: schemas.AnalyzeRequest) -> str:
     job = await job_store.create_job(request)
-    asyncio.create_task(_execute_job(job.run_id))
+    if settings.run_jobs_inline:
+        await _execute_job(job.run_id)
+    else:
+        asyncio.create_task(_execute_job(job.run_id))
     return job.run_id
 
 
