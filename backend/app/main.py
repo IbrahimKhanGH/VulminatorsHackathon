@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from mangum import Mangum
 
 from .config import get_settings
 from .jobs import enqueue_job, get_job_status
@@ -15,17 +16,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 @app.get("/health")
 async def healthcheck() -> dict:
     return {"status": "ok", "workspace": str(settings.workspace_root)}
-
 
 @app.post("/analyze", response_model=AnalyzeResponse)
 async def analyze_repo(payload: AnalyzeRequest) -> AnalyzeResponse:
     run_id = await enqueue_job(payload)
     return AnalyzeResponse(run_id=run_id, status="queued")
-
 
 @app.get("/runs/{run_id}", response_model=RunStatusResponse)
 async def fetch_run(run_id: str) -> RunStatusResponse:
@@ -33,3 +31,5 @@ async def fetch_run(run_id: str) -> RunStatusResponse:
     if not status:
         raise HTTPException(status_code=404, detail="Run not found")
     return status
+
+handler = Mangum(app)
