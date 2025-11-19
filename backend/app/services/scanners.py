@@ -1,5 +1,6 @@
 import json
 import shutil
+from pathlib import Path
 import subprocess
 from typing import List
 
@@ -16,19 +17,24 @@ class ScannerError(RuntimeError):
     pass
 
 
-def _ensure_semgrep_installed() -> None:
-    if not shutil.which("semgrep"):
-        raise ScannerError(
-            "Semgrep CLI not found. Install it via pip (pip install semgrep) "
-            "or brew (brew install semgrep)."
-        )
+def _resolve_semgrep_binary() -> str:
+    binary = shutil.which("semgrep")
+    fallback = Path("/opt/python/bin/semgrep")
+    if binary:
+        return binary
+    if fallback.exists():
+        return str(fallback)
+    raise ScannerError(
+        "Semgrep CLI not found. Install it via pip (pip install semgrep) "
+        "or brew (brew install semgrep)."
+    )
 
 
 def run_semgrep_scan(repo_path: str, preset: ScanPreset) -> List[dict]:
-    _ensure_semgrep_installed()
+    semgrep_bin = _resolve_semgrep_binary()
     config = SEMGREP_CONFIG_MAP.get(preset, SEMGREP_CONFIG_MAP[ScanPreset.fast])
     cmd = [
-        "semgrep",
+        semgrep_bin,
         "--config",
         config,
         "--json",
