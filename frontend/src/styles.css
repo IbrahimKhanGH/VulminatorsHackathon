@@ -212,33 +212,111 @@ button:not(:disabled):hover {
   text-decoration: underline;
 }
 
+.pr-preview {
+  margin-top: 16px;
+  padding: 12px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
 .panel.secondary {
   background: rgba(255, 255, 255, 0.03);
 }
 
-.timeline {
+.agentic-timeline {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   margin-top: 24px;
 }
 
-.timeline-step {
+.agentic-step {
   display: flex;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
   align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.timeline-step .dot {
-  width: 10px;
-  height: 10px;
+.agentic-orb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0 15px rgba(124, 58, 237, 0.4);
+}
+
+.agentic-step.status-running .agentic-orb {
+  background: linear-gradient(120deg, #7c3aed, #f78da7);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.agentic-step.status-done .agentic-orb {
+  background: #22c55e;
+}
+
+.agentic-step.status-failed .agentic-orb {
+  background: #f87171;
+}
+
+.agentic-step.status-skipped .agentic-orb {
+  background: #94a3b8;
+}
+
+.agentic-label {
+  margin: 0;
+  font-weight: 600;
+}
+
+.agentic-sub {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.agent-log {
+  margin-top: 24px;
+}
+
+.log-stream {
+  margin-top: 12px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.log-line {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.log-dot {
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: linear-gradient(120deg, #7c3aed, #f78da7);
   flex-shrink: 0;
+}
+
+.panel.hero {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, rgba(76, 29, 149, 0.4), rgba(15, 23, 42, 0.85));
+  border: 1px solid rgba(248, 250, 252, 0.12);
 }
 
 .agent-animation {
@@ -277,4 +355,41 @@ button:not(:disabled):hover {
 
 .findings.compact .finding-card {
   padding: 12px;
+}
+
+.ai-insight {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(124, 58, 237, 0.08);
+  border: 1px solid rgba(124, 58, 237, 0.2);
+}
+
+.ai-insight h4 {
+  margin: 0 0 6px;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #c084fc;
+}
+
+.code-block {
+  margin: 0;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: 'JetBrains Mono', 'Space Grotesk', monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.code-block.diff {
+  background: rgba(3, 7, 18, 0.9);
+  border-color: rgba(124, 58, 237, 0.3);
+}
+
+.code-block.diff span {
+  display: block;
 }

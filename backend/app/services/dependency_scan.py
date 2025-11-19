@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 import shutil
 import subprocess
 from dataclasses import dataclass, field
@@ -23,6 +24,13 @@ def _ensure_npm() -> str:
 
 
 UPGRADE_SEVERITIES = {"high", "critical"}
+
+
+def _relative_path(path: Path, root: Path) -> Path:
+    try:
+        return path.relative_to(root)
+    except ValueError:
+        return Path(os.path.relpath(path, root))
 
 
 @dataclass
@@ -79,10 +87,10 @@ def _parse_vulnerabilities(payload: dict, lockfile_path: Path):
 
 def run_dependency_audits(repo_path: str) -> DependencyScanResult:
     npm_bin = _ensure_npm()
-    root = Path(repo_path)
-    lockfiles = list(root.rglob("package-lock.json"))
+    root = Path(repo_path).resolve()
+    lockfiles = [lock.resolve() for lock in root.rglob("package-lock.json")]
 
-    result = DependencyScanResult(lockfiles=[lock.relative_to(root) for lock in lockfiles])
+    result = DependencyScanResult(lockfiles=[_relative_path(lock, root) for lock in lockfiles])
 
     if not lockfiles:
         logger.info("No package-lock.json files found under %s", repo_path)
@@ -97,6 +105,7 @@ def run_dependency_audits(repo_path: str) -> DependencyScanResult:
         return result
 
     for lockfile in lockfiles:
+        relative_lock = _relative_path(lockfile, root)
         logger.info("Running npm audit in %s", lockfile.parent)
         cmd = [npm_bin, "audit", "--json", "--package-lock-only"]
         process = subprocess.run(
@@ -127,11 +136,11 @@ def run_dependency_audits(repo_path: str) -> DependencyScanResult:
             ) from exc
 
         findings, upgrade_candidates = _parse_vulnerabilities(
-            data, lockfile.relative_to(root)
+            data, relative_lock
         )
         result.findings.extend(findings)
         if upgrade_candidates:
-            result.upgrade_plan[lockfile.relative_to(root)] = upgrade_candidates
+            result.upgrade_plan[relative_lock] = upgrade_candidates
 
     if not result.findings:
         result.findings.append(

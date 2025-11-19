@@ -1,6 +1,6 @@
 import asyncio
 import uuid
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from . import schemas
 from .config import get_settings
@@ -15,6 +15,7 @@ class JobRecord:
         self.message: Optional[str] = None
         self.findings = []
         self.pr_url: Optional[str] = None
+        self.steps: List[Dict[str, str]] = []
 
 
 class JobStore:
@@ -52,14 +53,20 @@ async def _execute_job(run_id: str) -> None:
 
     await job_store.update_job(run_id, status=schemas.RunStatus.running)
 
+    async def progress_update(message: str, steps: List[Dict[str, str]]) -> None:
+        await job_store.update_job(run_id, message=message, steps=steps)
+
     try:
-        result = await run_analysis_pipeline(job.run_id, job.request)
+        result = await run_analysis_pipeline(
+            job.run_id, job.request, progress_callback=progress_update
+        )
         await job_store.update_job(
             run_id,
             status=schemas.RunStatus.completed,
             findings=result.findings,
             pr_url=result.pr_url,
             message=result.message,
+            steps=result.steps,
         )
     except NotImplementedError:
         await job_store.update_job(
@@ -97,4 +104,5 @@ async def get_job_status(run_id: str) -> Optional[schemas.RunStatusResponse]:
         findings=[schemas.FindingSummary(**finding) for finding in job.findings]
         if job.findings
         else None,
+        steps=[schemas.PipelineStep(**step) for step in job.steps] if job.steps else None,
     )

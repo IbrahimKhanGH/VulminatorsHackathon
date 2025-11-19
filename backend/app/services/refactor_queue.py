@@ -5,6 +5,11 @@ from pathlib import Path
 from typing import List, Set
 
 SEVERITIES_FOR_REFACTOR = {"critical", "high", "moderate"}
+SKIP_FILENAMES = {
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+}
 MAX_TASKS = 8
 
 
@@ -35,7 +40,11 @@ def build_refactor_queue(repo_dir: Path, findings: List[dict], max_tasks: int = 
             continue
 
         candidate_path = (repo_dir / file_rel).resolve()
-        if not candidate_path.exists() or candidate_path in seen:
+        if (
+            not candidate_path.exists()
+            or candidate_path in seen
+            or candidate_path.name in SKIP_FILENAMES
+        ):
             continue
 
         snippet = _extract_snippet(candidate_path)

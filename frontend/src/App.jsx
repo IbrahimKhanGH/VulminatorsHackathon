@@ -7,6 +7,22 @@ const presets = [
 ];
 
 const defaultRepo = 'https://github.com/IbrahimKhanGH/finalDemo';
+const stepStatusCopy = {
+  pending: 'Pending',
+  running: 'Agent at work…',
+  done: 'Completed',
+  failed: 'Failed',
+  skipped: 'Skipped',
+};
+
+const severityRank = {
+  critical: 5,
+  high: 4,
+  moderate: 3,
+  medium: 3,
+  low: 2,
+  info: 1,
+};
 
 export default function App() {
   const backendBase = useMemo(
@@ -24,6 +40,7 @@ export default function App() {
   const [prUrl, setPrUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [pipelineSteps, setPipelineSteps] = useState([]);
 
   useEffect(() => {
     if (!runId) {
@@ -45,6 +62,7 @@ export default function App() {
         setMessage(data.message || '');
         setFindings(data.findings || []);
         setPrUrl(data.pr_url || '');
+        setPipelineSteps(data.steps || []);
       } catch (err) {
         console.error(err);
         if (!cancelled) {
@@ -75,6 +93,7 @@ export default function App() {
     setRunId('');
     setStatus('queued');
     setIsSubmitting(true);
+    setPipelineSteps([]);
 
     try {
       const response = await fetch(`${backendBase}/analyze`, {
@@ -108,14 +127,6 @@ export default function App() {
 
   const canSubmit = repoUrl.length > 0 && !isSubmitting;
 
-  const timelineSteps = useMemo(() => {
-    if (!message) return [];
-    return message
-      .split(';')
-      .map((step) => step.trim())
-      .filter(Boolean);
-  }, [message]);
-
   const dependencyFindings = useMemo(
     () => findings.filter((finding) => finding.title?.startsWith('Upgraded')),
     [findings]
@@ -135,6 +146,23 @@ export default function App() {
       ),
     [findings]
   );
+
+  const heroFinding = useMemo(() => {
+    if (vulnFindings.length === 0) return null;
+    return [...vulnFindings].sort((a, b) => {
+      const aScore = severityRank[a.severity?.toLowerCase()] || 0;
+      const bScore = severityRank[b.severity?.toLowerCase()] || 0;
+      return bScore - aScore;
+    })[0];
+  }, [vulnFindings]);
+
+  const activityLog = useMemo(() => {
+    if (!message) return [];
+    return message
+      .split(';')
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+  }, [message]);
 
   const isBusy = status === 'running' || status === 'queued';
 
@@ -197,9 +225,17 @@ export default function App() {
           {message && <p className="muted">{message}</p>}
           {error && <p className="error">{error}</p>}
           {prUrl && (
-            <a className="pr-link" href={prUrl} target="_blank" rel="noreferrer">
-              View generated PR ↗
-            </a>
+            <div className="pr-preview">
+              <div>
+                <p className="eyebrow">PR ready</p>
+                <p className="muted">
+                  {vulnFindings.length} findings · {dependencyFindings.length} upgrades
+                </p>
+              </div>
+              <a className="pr-link" href={prUrl} target="_blank" rel="noreferrer">
+                View PR ↗
+              </a>
+            </div>
           )}
         </header>
 
@@ -210,17 +246,67 @@ export default function App() {
           </div>
         )}
 
-        {timelineSteps.length > 0 && (
-          <div className="timeline">
-            {timelineSteps.map((step, index) => (
-              <div key={`${step}-${index}`} className="timeline-step">
-                <span className="dot" />
-                <p>{step}</p>
+        {pipelineSteps.length > 0 && (
+          <div className="agentic-timeline">
+            {pipelineSteps.map((step) => (
+              <div
+                key={step.id}
+                className={`agentic-step status-${step.status}`}
+              >
+                <div className="agentic-orb" />
+                <div>
+                  <p className="agentic-label">{step.label}</p>
+                  <p className="agentic-sub">
+                    {stepStatusCopy[step.status] || step.status}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
         )}
+
+        {activityLog.length > 0 && (
+          <div className="agent-log">
+            <p className="eyebrow">Agent log</p>
+            <div className="log-stream">
+              {activityLog.map((entry, index) => (
+                <div key={`${entry}-${index}`} className="log-line">
+                  <span className="log-dot" />
+                  <p>{entry}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
+
+      {heroFinding && (
+        <section className="panel hero">
+          <p className="eyebrow">AI spotlight</p>
+          <h2>{heroFinding.title}</h2>
+          <div className="finding-meta">
+            <span className={`badge badge-${heroFinding.severity?.toLowerCase()}`}>
+              {heroFinding.severity?.toUpperCase()}
+            </span>
+            {heroFinding.file_path && (
+              <span className="file">{heroFinding.file_path}</span>
+            )}
+          </div>
+          <p>{heroFinding.summary}</p>
+          {heroFinding.risk_brief && (
+            <div className="ai-insight">
+              <h4>AI risk brief</h4>
+              <p>{heroFinding.risk_brief}</p>
+            </div>
+          )}
+          {heroFinding.patch_suggestion && (
+            <div className="ai-insight">
+              <h4>AI patch idea</h4>
+              <pre className="code-block diff">{heroFinding.patch_suggestion}</pre>
+            </div>
+          )}
+        </section>
+      )}
 
       {dependencyFindings.length > 0 && (
         <section className="panel secondary">
@@ -235,6 +321,18 @@ export default function App() {
                 </div>
                 <h3>{finding.title}</h3>
                 <p>{finding.summary}</p>
+                {finding.risk_brief && (
+                  <div className="ai-insight">
+                    <h4>AI risk brief</h4>
+                    <p>{finding.risk_brief}</p>
+                  </div>
+                )}
+                {finding.patch_suggestion && (
+                  <div className="ai-insight">
+                    <h4>AI patch idea</h4>
+                    <pre className="code-block diff">{finding.patch_suggestion}</pre>
+                  </div>
+                )}
               </article>
             ))}
           </div>
@@ -260,6 +358,18 @@ export default function App() {
                 </div>
                 <h3>{finding.title}</h3>
                 <p>{finding.summary}</p>
+                {finding.risk_brief && (
+                  <div className="ai-insight">
+                    <h4>AI risk brief</h4>
+                    <p>{finding.risk_brief}</p>
+                  </div>
+                )}
+                {finding.patch_suggestion && (
+                  <div className="ai-insight">
+                    <h4>AI patch idea</h4>
+                    <pre className="code-block diff">{finding.patch_suggestion}</pre>
+                  </div>
+                )}
               </article>
             ))}
           </div>
@@ -284,6 +394,18 @@ export default function App() {
               </div>
               <h3>{finding.title}</h3>
               <p>{finding.summary}</p>
+              {finding.risk_brief && (
+                <div className="ai-insight">
+                  <h4>AI risk brief</h4>
+                  <p>{finding.risk_brief}</p>
+                </div>
+              )}
+              {finding.patch_suggestion && (
+                <div className="ai-insight">
+                  <h4>AI patch idea</h4>
+                  <pre className="code-block diff">{finding.patch_suggestion}</pre>
+                </div>
+              )}
             </article>
           ))}
         </div>

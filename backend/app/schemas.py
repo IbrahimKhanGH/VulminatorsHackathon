@@ -36,6 +36,22 @@ class FindingSummary(BaseModel):
     severity: str
     file_path: Optional[str] = None
     summary: str
+    risk_brief: Optional[str] = None
+    patch_suggestion: Optional[str] = None
+
+
+class StepStatus(str, Enum):
+    pending = "pending"
+    running = "running"
+    done = "done"
+    failed = "failed"
+    skipped = "skipped"
+
+
+class PipelineStep(BaseModel):
+    id: str
+    label: str
+    status: StepStatus
 
 
 class RunStatusResponse(BaseModel):
@@ -44,3 +60,4 @@ class RunStatusResponse(BaseModel):
     message: Optional[str] = None
     findings: Optional[List[FindingSummary]] = None
     pr_url: Optional[HttpUrl] = None
+    steps: Optional[List[PipelineStep]] = None

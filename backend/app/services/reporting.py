@@ -66,10 +66,17 @@ async def generate_markdown_report(findings: List[FindingSummary]) -> str:
     if not os.getenv("OPENAI_API_KEY"):
         return _fallback_report(findings)
 
-    findings_payload = "\n".join(
-        f"- [{finding.severity.upper()}] {finding.title}: {finding.summary}"
-        for finding in findings
-    ) or "No findings generated."
+    def _render_finding(finding: FindingSummary) -> str:
+        details = f"- [{finding.severity.upper()}] {finding.title}: {finding.summary}"
+        if finding.risk_brief:
+            details += f"\n  Risk: {finding.risk_brief}"
+        if finding.patch_suggestion:
+            details += f"\n  Patch: {finding.patch_suggestion}"
+        return details
+
+    findings_payload = "\n".join(_render_finding(finding) for finding in findings) or (
+        "No findings generated."
+    )
 
     prompt = dedent(
         f"""
