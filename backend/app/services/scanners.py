@@ -1,10 +1,13 @@
 import json
+import logging
 import shutil
-from pathlib import Path
 import subprocess
+from pathlib import Path
 from typing import List
 
 from ..schemas import ScanPreset
+
+logger = logging.getLogger(__name__)
 
 SEMGREP_CONFIG_MAP = {
     ScanPreset.fast: "p/ci",
@@ -21,9 +24,14 @@ def _resolve_semgrep_binary() -> str:
     binary = shutil.which("semgrep")
     fallback = Path("/opt/python/bin/semgrep")
     if binary:
+        logger.debug("Semgrep binary found via PATH: %s", binary)
         return binary
     if fallback.exists():
+        logger.warning(
+            "Semgrep binary not on PATH; falling back to %s", fallback.as_posix()
+        )
         return str(fallback)
+    logger.error("Semgrep CLI missing from PATH and fallback location: %s", fallback)
     raise ScannerError(
         "Semgrep CLI not found. Install it via pip (pip install semgrep) "
         "or brew (brew install semgrep)."
@@ -50,6 +58,9 @@ def run_semgrep_scan(repo_path: str, preset: ScanPreset) -> List[dict]:
     )
 
     if process.returncode not in (0, 1):
+        logger.error(
+            "Semgrep failed (code %s). stderr=%s", process.returncode, process.stderr
+        )
         raise ScannerError(
             f"Semgrep failed with code {process.returncode}: {process.stderr.strip()}"
         )

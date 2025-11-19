@@ -1,18 +1,25 @@
 """Dependency vulnerability scanning helpers (npm audit)."""
 
 import json
+import logging
 import shutil
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Set
 
+logger = logging.getLogger(__name__)
 
-def _ensure_npm() -> None:
-    if not shutil.which("npm"):
-        raise DependencyScannerError(
-            "npm CLI not found. Install Node.js/npm to enable dependency audits."
-        )
+
+def _ensure_npm() -> str:
+    npm_path = shutil.which("npm")
+    if npm_path:
+        logger.debug("Found npm binary at %s", npm_path)
+        return npm_path
+    logger.error("npm CLI missing from Lambda layer/ZIP")
+    raise DependencyScannerError(
+        "npm CLI not found. Install Node.js/npm to enable dependency audits."
+    )
 
 
 UPGRADE_SEVERITIES = {"high", "critical"}
@@ -71,13 +78,14 @@ def _parse_vulnerabilities(payload: dict, lockfile_path: Path):
 
 
 def run_dependency_audits(repo_path: str) -> DependencyScanResult:
-    _ensure_npm()
+    npm_bin = _ensure_npm()
     root = Path(repo_path)
     lockfiles = list(root.rglob("package-lock.json"))
 
     result = DependencyScanResult(lockfiles=[lock.relative_to(root) for lock in lockfiles])
 
     if not lockfiles:
+        logger.info("No package-lock.json files found under %s", repo_path)
         result.findings.append(
             {
                 "title": "Dependency audit",
@@ -89,7 +97,8 @@ def run_dependency_audits(repo_path: str) -> DependencyScanResult:
         return result
 
     for lockfile in lockfiles:
-        cmd = ["npm", "audit", "--json", "--package-lock-only"]
+        logger.info("Running npm audit in %s", lockfile.parent)
+        cmd = [npm_bin, "audit", "--json", "--package-lock-only"]
         process = subprocess.run(
             cmd,
             cwd=lockfile.parent,
@@ -99,6 +108,12 @@ def run_dependency_audits(repo_path: str) -> DependencyScanResult:
         )
 
         if process.returncode not in (0, 1):
+            logger.error(
+                "npm audit failed for %s (code %s): %s",
+                lockfile,
+                process.returncode,
+                process.stderr,
+            )
             raise DependencyScannerError(
                 f"npm audit failed for {lockfile} (code {process.returncode}): "
                 f"{process.stderr.strip()}"
